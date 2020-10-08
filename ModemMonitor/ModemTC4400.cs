@@ -35,18 +35,21 @@ namespace ModemMonitor
 		public async Task GetAllDataAsync()
 		{
 			// get connection quality data; 2nd table
-			await GetDataAsync("cmconnectionstatus.html", typeof(ModemTableDownstreamChannelStatus), "ChannelStatus-", 2, 1);
+			await GetDataAsync("cmconnectionstatus.html", "ChannelStatus-", 2, 1);
 			//await GetDataAsync("cmeventlog.html", 2, "EventLog-", 1, typeof(ModemTableEventLog));
+
+
+			Console.WriteLine($"Retrieved records at {DateTime.Now.ToString("yyyyMMdd-HH.mm.ss")}");
 		}
 
-		private async Task GetDataAsync(String pageUrl, Type classType, String filenamePrefix, int tableNum = 1, int skipTableRows = 0)
+		private async Task GetDataAsync(String pageUrl, String filenamePrefix, int tableNum = 1, int skipTableRows = 0)
 		{
 			// get date variables and filename
 			DateTime genDate = DateTime.Now;
 			String strDateDay = genDate.ToString("yyyyMMdd");
 			String strDateSec = genDate.ToString("yyyyMMdd-HH.mm.ss");
 			String csvFilename = $"csv/{filenamePrefix}{strDateDay}.csv";
-			String htmlFilename = $"html/{filenamePrefix}{strDateSec}.htm";
+			String htmlFilename = $"html/{strDateDay}/{filenamePrefix}{strDateSec}.htm";
 
 			// ensure directories exist
 			new FileInfo(htmlFilename).Directory.Create();
@@ -68,10 +71,10 @@ namespace ModemMonitor
 
 
 			// extract data from table
-			List<ModemTableDataInterface> data = extractTableData(pageContents, classType, tableNum, skipTableRows);
+			List<List<String>> data = extractTableData(pageContents, genDate, tableNum, skipTableRows);
 
 			// save data to CSV
-			await WriteCSVAsync(csvFilename, data);
+			WriteCSV(csvFilename, data);
 		}
 
 		private async Task<String> GetPageAsync(String page)
@@ -95,44 +98,62 @@ namespace ModemMonitor
 			return result;
 		}
 
-		private List<ModemTableDataInterface> extractTableData(String pageContents, Type className, int tableNum = 1, int skipRows = 0)
+		private List<List<String>> extractTableData(String pageContents, DateTime genDate, int tableNum = 1, int skipRows = 0)
 		{
-			List<ModemTableDataInterface> results = new List<ModemTableDataInterface>();
+			List<List<String>> results = new List<List<String>>();
 			HtmlDocument htmlDoc = new HtmlDocument();
 			htmlDoc.LoadHtml(pageContents);
 
 			HtmlNodeCollection nodesTR = htmlDoc.DocumentNode.SelectNodes("(//table)[" + tableNum + "]/tr");
 
-			int numOfRows = 0;
-			int numOfCols = 0;
+			int curRow = 0;
+			int curCol = 0;
 			// get <TABLE><TD> nodes
 			foreach (var nodeTR in nodesTR)
 			{
 				// skip rows
-				if (numOfRows >= skipRows)
+				if (curRow >= skipRows)
 				{
-					numOfCols = 0;
+					curCol = 0;
 					//Console.WriteLine(nodeTR.InnerText);
 
 					// get inner <TD> nodes
 					HtmlNodeCollection nodesTD = nodeTR.SelectNodes("td");
 
+					List<String> data = new List<string>();
+
+					if (curRow - skipRows == 0)
+					{
+						// add the standard headings
+						data.Add("Date");
+						data.Add("Time");
+						data.Add("Row No");
+					}
+					else
+					{
+						String strDateSec = genDate.ToString("yyyyMMdd-HH.mm.ss");
+
+						// add the standard items
+						data.Add(genDate.ToString("yyyyMMdd"));
+						data.Add(genDate.ToString("HH:mm:ss"));
+						data.Add((curRow - skipRows).ToString());
+					}
+
 					// go through each node
-					/*					foreach (var nodeTD in nodesTD)
-									{
-										Console.WriteLine("Innernode #" + numOfCols + ": " + nodeTD.InnerText);
-										numOfCols++;
-									}
-					*/
-					// create a new object of the type that was passed to us
-					ModemTableDataInterface data = (ModemTableDataInterface)Activator.CreateInstance(className);
-					// store the nodes into the data
-					data.ParseData(nodesTD, numOfRows);
+					foreach (var nodeTD in nodesTD)
+					{
+						//Console.WriteLine("Innernode #" + numOfCols + ": " + nodeTD.InnerText);
+						// store the nodes into the data
+						data.Add(nodeTD.InnerText);
+						curCol++;
+					}
+
+
 
 					// add data to results
 					results.Add(data);
 				}
-				numOfRows++;
+				curRow++;
 			}
 
 			/*			Console.WriteLine($"Number of rows:    {numOfRows}");
@@ -141,28 +162,43 @@ namespace ModemMonitor
 			return results;
 		}
 
-		private async Task WriteCSVAsync(String csvFilename, List<ModemTableDataInterface> data)
+		private void WriteCSV(String csvFilename, List<List<String>> data)
 		{
+			bool skipFirstRow = false;
+			// if the file doesn't exist, write all rows
+			// if the file exists already, append and skip the first row
+			if (File.Exists(csvFilename))
+			{
+				skipFirstRow = true;
+			}
+
 			using (var writer = new StreamWriter(csvFilename, true))
 			using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
 			{
-				//await csv.WriteRecordsAsync(row);
-				//csv.WriteRecords(data);
-
-
 				// add each row
-				foreach (ModemTableDataInterface row in data)
-				{
-					//await csv.WriteRecordsAsync(row);
-					csv.WriteRecords(row);
+				int curRow = 0;
 
-					/*					// add each column/data field
-										for (int i = 0; i < row.Count; i++)
-										{
-											await csv.WriteRecordsAsync(row.GetValueAtIndex(i));
-										}
-					*/
+				foreach (List<String> row in data)
+				{
+					// skip first/heading row?
+					if (curRow == 0 && skipFirstRow)
+					{
+						continue;
+					}
+					else
+					{
+						// write all the fields for the current record
+						foreach (String field in row)
+						{
+							csv.WriteField(field);
+						}
+						// complete the record
+						csv.NextRecord();
+					}
+					curRow++;
 				}
+
+				writer.Flush();
 			}
 		}
 	}
