@@ -24,6 +24,7 @@ namespace ModemMonitor
 			ModemTC4400 connection = new ModemTC4400(_client, username, password);
 
 			// Start loop
+			Console.WriteLine($"Starting loop... will pause every {secondsToWait} seconds...");
 			while (keepGoing)
 			{
 				try

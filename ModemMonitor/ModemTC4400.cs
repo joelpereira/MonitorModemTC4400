@@ -39,6 +39,8 @@ namespace ModemMonitor
 			recordsAdded += await GetDataAsync("cmconnectionstatus.html", "ChannelStatus-", 2, 1);
 			// get event log data
 			recordsAdded += await GetDataAsync("cmeventlog.html", "EventLog-", 1, 1);
+			// get modem info
+			recordsAdded += await GetDataAsync("info.html", "Info-", 1, 0);
 
 
 			Console.WriteLine($"Stored {recordsAdded} records at {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}");
@@ -81,10 +83,7 @@ namespace ModemMonitor
 
 			// fix pages if needed!
 			// Event Log
-			if (pageUrl.Contains("cmeventlog.html"))
-			{
-				pageContents = FixEventLogPage(pageContents);
-			}
+			pageContents = FixEventLogPage(pageUrl, pageContents);
 
 			// extract data from table
 			List<List<String>> data = extractTableData(pageContents, genDate, tableNum, skipTableRows);
@@ -124,7 +123,7 @@ namespace ModemMonitor
 
 			int curRow = 0;
 			int curCol = 0;
-			// get <TABLE><TD> nodes
+			// get <TABLE><TR> nodes
 			foreach (var nodeTR in nodesTR)
 			{
 				// skip rows
@@ -222,15 +221,36 @@ namespace ModemMonitor
 			return recordsAdded;
 		}
 
-		private String FixEventLogPage(String pageContents)
+		private String FixEventLogPage(String pageUrl, String pageContents)
 		{
-			// split string from line 23/24 and again at where the </table> is
+			if (pageUrl.Contains("cmeventlog.html"))
+			{
+				// minor data cleanup
+				pageContents = pageContents.Replace("&nbsp;", " ");
 
-			// add missing <tr> tags (if needed)
+				// FIX
+				// split string on each newline
+				List<String> splitStr = pageContents.Split("\n").ToList<String>();
+				// determine where the table is; between line 23/24 and again at where the </table> isand determine where the table is; between line 23/24 and again at where the </table> is			
+				int startIndex = 22;
+				for (int i = startIndex; i < splitStr.Count; i++)
+				{
+					if (splitStr[i].Contains("</TABLE>", StringComparison.InvariantCultureIgnoreCase))
+					{
+						// stop now
+						i = splitStr.Count;
+					}
+					else
+					{
+						// just replace all </tr> with </tr><tr>
+						splitStr[i] = splitStr[i].Replace("</tr>", "</tr>\n<tr>", StringComparison.InvariantCultureIgnoreCase);
+					}
+				}
 
-			// stitch the string back together
+				// stitch the string back together
+				pageContents = String.Join("\n", splitStr);
 
-
+			}
 			return pageContents;
 		}
 	}
