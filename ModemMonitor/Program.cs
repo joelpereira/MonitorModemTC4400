@@ -14,7 +14,7 @@ namespace ModemMonitor
 		static String username = "admin";
 		static String password = "bEn2o#US9s";
 
-		static int secondsToWait = 15;
+		static int secondsToWait = 30;
 
 
 		static async Task Main(string[] args)
@@ -37,7 +37,7 @@ namespace ModemMonitor
 					{
 						Console.WriteLine($"Error: {ex.InnerException} ");
 					}
-					Console.WriteLine($"Error: {ex.StackTrace} ");
+					//Console.WriteLine($"Error: {ex.StackTrace} ");
 				}
 
 				// wait for x seconds

@@ -34,15 +34,25 @@ namespace ModemMonitor
 
 		public async Task GetAllDataAsync()
 		{
+			int recordsAdded = 0;
 			// get connection quality data; 2nd table
-			await GetDataAsync("cmconnectionstatus.html", "ChannelStatus-", 2, 1);
-			//await GetDataAsync("cmeventlog.html", 2, "EventLog-", 1, typeof(ModemTableEventLog));
+			recordsAdded += await GetDataAsync("cmconnectionstatus.html", "ChannelStatus-", 2, 1);
+			// get event log data
+			recordsAdded += await GetDataAsync("cmeventlog.html", "EventLog-", 1, 1);
 
 
-			Console.WriteLine($"Retrieved records at {DateTime.Now.ToString("yyyyMMdd-HH.mm.ss")}");
+			Console.WriteLine($"Stored {recordsAdded} records at {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}");
 		}
 
-		private async Task GetDataAsync(String pageUrl, String filenamePrefix, int tableNum = 1, int skipTableRows = 0)
+		/// <summary>
+		/// Get's data from a table on the modem website/page
+		/// </summary>
+		/// <param name="pageUrl"></param>
+		/// <param name="filenamePrefix"></param>
+		/// <param name="tableNum"></param>
+		/// <param name="skipTableRows"></param>
+		/// <returns>The number of records stored.</returns>
+		private async Task<int> GetDataAsync(String pageUrl, String filenamePrefix, int tableNum = 1, int skipTableRows = 0)
 		{
 			// get date variables and filename
 			DateTime genDate = DateTime.Now;
@@ -69,12 +79,18 @@ namespace ModemMonitor
 			await File.WriteAllTextAsync(htmlFilename, pageContents, Encoding.UTF8);
 			//}
 
+			// fix pages if needed!
+			// Event Log
+			if (pageUrl.Contains("cmeventlog.html"))
+			{
+				pageContents = FixEventLogPage(pageContents);
+			}
 
 			// extract data from table
 			List<List<String>> data = extractTableData(pageContents, genDate, tableNum, skipTableRows);
 
 			// save data to CSV
-			WriteCSV(csvFilename, data);
+			return WriteCSV(csvFilename, data);
 		}
 
 		private async Task<String> GetPageAsync(String page)
@@ -162,8 +178,9 @@ namespace ModemMonitor
 			return results;
 		}
 
-		private void WriteCSV(String csvFilename, List<List<String>> data)
+		private int WriteCSV(String csvFilename, List<List<String>> data)
 		{
+			int recordsAdded = 0;
 			bool skipFirstRow = false;
 			// if the file doesn't exist, write all rows
 			// if the file exists already, append and skip the first row
@@ -195,12 +212,26 @@ namespace ModemMonitor
 						}
 						// complete the record
 						csv.NextRecord();
+						recordsAdded++;
 					}
 					curRow++;
 				}
 
 				writer.Flush();
 			}
+			return recordsAdded;
+		}
+
+		private String FixEventLogPage(String pageContents)
+		{
+			// split string from line 23/24 and again at where the </table> is
+
+			// add missing <tr> tags (if needed)
+
+			// stitch the string back together
+
+
+			return pageContents;
 		}
 	}
 }
