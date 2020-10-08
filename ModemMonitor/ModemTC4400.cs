@@ -183,6 +183,7 @@ namespace ModemMonitor
 					// skip first/heading row?
 					if (curRow == 0 && skipFirstRow)
 					{
+						curRow++;
 						continue;
 					}
 					else
