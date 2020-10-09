@@ -59,18 +59,18 @@ namespace ModemMonitor
 		/// Get's data from a table on the modem website/page
 		/// </summary>
 		/// <param name="pageUrl"></param>
-		/// <param name="filenamePrefixCSV"></param>
+		/// <param name="filenamePrefix"></param>
 		/// <param name="tableNum"></param>
 		/// <param name="skipTableRows"></param>
 		/// <returns>The number of records stored.</returns>
-		private async Task<int> GetDataAsync(String pageUrl, String filenamePrefixCSV, int tableNum = 1, int skipTableRows = 0, bool saveHTMLPage = true)
+		private async Task<int> GetDataAsync(String pageUrl, String filenamePrefix, int tableNum = 1, int skipTableRows = 0, bool saveHTMLPage = true)
 		{
 			// get date variables and filename
 			DateTime genDate = DateTime.Now;
 			String strDateDay = genDate.ToString("yyyyMMdd");
 			String strDateSec = genDate.ToString("yyyyMMdd-HH.mm.ss");
-			String csvFilename = $"csv/{filenamePrefixCSV}{strDateDay}.csv";
-			String htmlFilename = $"html/{strDateDay}/{filenamePrefixCSV}{strDateSec}.htm";
+			String csvFilename = $"csv/{filenamePrefix}{strDateDay}.csv";
+			String htmlFilename = $"html/{strDateDay}/{filenamePrefix}{strDateSec}.htm";
 
 			// ensure directories exist
 			new FileInfo(htmlFilename).Directory.Create();
