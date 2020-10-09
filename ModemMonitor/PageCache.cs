@@ -10,11 +10,11 @@ namespace ModemMonitor
 		public String PageContents { get; set; }
 		public DateTime DateTimeCached { get; private set; }
 
-		public PageCache(String pageName, String pageContents, DateTime dateTimeCached)
+		public PageCache(String pageName, String pageContents)
 		{
 			PageName = pageName;
 			PageContents = pageContents;
-			DateTimeCached = dateTimeCached;
+			DateTimeCached = DateTime.Now;
 		}
 	}
 }

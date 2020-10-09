@@ -40,8 +40,12 @@ namespace ModemMonitor
 			localPageCache.Clear();
 
 			int recordsAdded = 0;
-			// get connection quality data; 2nd table
-			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "ChannelStatus-", 2, 1);
+			// get startup procedure data; 1st table
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "ConnectionStatus-", 1, 1, true);
+			// get downstream connection quality data; 2nd table
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "DownstreamChannelStatus-", 2, 1, false);
+			// get upstream connection quality data; 3rd table
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "UpstreamChannelStatus-", 3, 1, false);
 			// get event log data
 			recordsAdded += await GetDataAsync(ModemTC4400Pages.EventLogPage, "EventLog-", 1, 1);
 			// get modem info
@@ -55,18 +59,18 @@ namespace ModemMonitor
 		/// Get's data from a table on the modem website/page
 		/// </summary>
 		/// <param name="pageUrl"></param>
-		/// <param name="filenamePrefix"></param>
+		/// <param name="filenamePrefixCSV"></param>
 		/// <param name="tableNum"></param>
 		/// <param name="skipTableRows"></param>
 		/// <returns>The number of records stored.</returns>
-		private async Task<int> GetDataAsync(String pageUrl, String filenamePrefix, int tableNum = 1, int skipTableRows = 0)
+		private async Task<int> GetDataAsync(String pageUrl, String filenamePrefixCSV, int tableNum = 1, int skipTableRows = 0, bool saveHTMLPage = true)
 		{
 			// get date variables and filename
 			DateTime genDate = DateTime.Now;
 			String strDateDay = genDate.ToString("yyyyMMdd");
 			String strDateSec = genDate.ToString("yyyyMMdd-HH.mm.ss");
-			String csvFilename = $"csv/{filenamePrefix}{strDateDay}.csv";
-			String htmlFilename = $"html/{strDateDay}/{filenamePrefix}{strDateSec}.htm";
+			String csvFilename = $"csv/{filenamePrefixCSV}{strDateDay}.csv";
+			String htmlFilename = $"html/{strDateDay}/{filenamePrefixCSV}{strDateSec}.htm";
 
 			// ensure directories exist
 			new FileInfo(htmlFilename).Directory.Create();
@@ -81,10 +85,12 @@ namespace ModemMonitor
 
 			// save HTML file contents
 			//if (!File.Exists(htmlFilename))
-			//{
-			// Create a new HTML file to write to.
-			await File.WriteAllTextAsync(htmlFilename, pageContents, Encoding.UTF8);
-			//}
+			// Create a new HTML file to write to, but only if we haven't already retrieved this from local cache.
+			if (saveHTMLPage)
+			{
+				// save the html page
+				await File.WriteAllTextAsync(htmlFilename, pageContents, Encoding.UTF8);
+			}
 
 			// fix pages if needed!
 			// Event Log
@@ -121,6 +127,9 @@ namespace ModemMonitor
 				if ((int)response.StatusCode == 200)    // OK
 				{
 					result = await content.ReadAsStringAsync();
+
+					// add to local page cache
+					localPageCache.Add(new PageCache(pageURL, result));
 				}
 			}
 
