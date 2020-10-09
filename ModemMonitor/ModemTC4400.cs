@@ -23,6 +23,8 @@ namespace ModemMonitor
 		// URLs/pages
 		private String hostname = "http://192.168.100.1/";
 
+		// local cache
+		private List<PageCache> localPageCache = new List<PageCache>();
 
 
 		public ModemTC4400(HttpClient client, String username, String password)
@@ -34,6 +36,9 @@ namespace ModemMonitor
 
 		public async Task GetAllDataAsync()
 		{
+			// clear the local cache
+			localPageCache.Clear();
+
 			int recordsAdded = 0;
 			// get connection quality data; 2nd table
 			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "ChannelStatus-", 2, 1);
@@ -92,22 +97,31 @@ namespace ModemMonitor
 			return WriteCSV(csvFilename, data);
 		}
 
-		private async Task<String> GetPageAsync(String page)
+		private async Task<String> GetPageAsync(String pageURL)
 		{
 			string result = "";
-			// setup basic auth
-			var byteArray = Encoding.ASCII.GetBytes($"{username}:{password}");
-			_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
-			HttpResponseMessage response = await _client.GetAsync($"{hostname}{page}");
-			HttpContent content = response.Content;
 
-			// ... Check Status Code
-			//Console.WriteLine("Response StatusCode: " + (int)response.StatusCode);
-
-			// ... Read the string.
-			if ((int)response.StatusCode == 200)    // OK
+			// check local cache first
+			if (PageInCache(pageURL) >= 0)
 			{
-				result = await content.ReadAsStringAsync();
+				return localPageCache[PageInCache(pageURL)].PageContents;
+			}
+			else
+			{
+				// setup basic auth
+				var byteArray = Encoding.ASCII.GetBytes($"{username}:{password}");
+				_client.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Basic", Convert.ToBase64String(byteArray));
+				HttpResponseMessage response = await _client.GetAsync($"{hostname}{pageURL}");
+				HttpContent content = response.Content;
+
+				// ... Check Status Code
+				//Console.WriteLine("Response StatusCode: " + (int)response.StatusCode);
+
+				// ... Read the string.
+				if ((int)response.StatusCode == 200)    // OK
+				{
+					result = await content.ReadAsStringAsync();
+				}
 			}
 
 			return result;
@@ -252,6 +266,18 @@ namespace ModemMonitor
 
 			}
 			return pageContents;
+		}
+
+		private int PageInCache(String pageName)
+		{
+			for (int i = 0; i < localPageCache?.Count; i++)
+			{
+				if (localPageCache[i].PageName.Contains(pageName))
+				{
+					return i;
+				}
+			}
+			return -1;
 		}
 	}
 }
