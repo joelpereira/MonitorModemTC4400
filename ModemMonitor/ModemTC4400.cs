@@ -36,11 +36,11 @@ namespace ModemMonitor
 		{
 			int recordsAdded = 0;
 			// get connection quality data; 2nd table
-			recordsAdded += await GetDataAsync("cmconnectionstatus.html", "ChannelStatus-", 2, 1);
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "ChannelStatus-", 2, 1);
 			// get event log data
-			recordsAdded += await GetDataAsync("cmeventlog.html", "EventLog-", 1, 1);
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.EventLogPage, "EventLog-", 1, 1);
 			// get modem info
-			recordsAdded += await GetDataAsync("info.html", "Info-", 1, 0);
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.InfoPage, "Info-", 1, 0);
 
 
 			Console.WriteLine($"Stored {recordsAdded} records at {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}");
@@ -223,7 +223,7 @@ namespace ModemMonitor
 
 		private String FixEventLogPage(String pageUrl, String pageContents)
 		{
-			if (pageUrl.Contains("cmeventlog.html"))
+			if (pageUrl.Contains(ModemTC4400Pages.EventLogPage))
 			{
 				// minor data cleanup
 				pageContents = pageContents.Replace("&nbsp;", " ");
