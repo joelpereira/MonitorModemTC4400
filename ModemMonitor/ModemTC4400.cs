@@ -177,6 +177,12 @@ namespace ModemMonitor
 						data.Add((curRow - skipRows).ToString());
 					}
 
+					// make sure we found a <td>
+					if (nodesTD == null)
+					{
+						throw new NullReferenceException($"NULL error: Could not find a <td> tag in the table.");
+					}
+
 					// go through each node
 					foreach (var nodeTD in nodesTD)
 					{
@@ -248,31 +254,38 @@ namespace ModemMonitor
 		{
 			if (pageUrl.Contains(ModemTC4400Pages.EventLogPage))
 			{
-				// minor data cleanup
+				// FIX 1 - minor data cleanup
 				pageContents = pageContents.Replace("&nbsp;", " ");
 
-				// FIX
-				// split string on each newline
-				List<String> splitStr = pageContents.Split("\n").ToList<String>();
-				// determine where the table is; between line 23/24 and again at where the </table> isand determine where the table is; between line 23/24 and again at where the </table> is			
-				int startIndex = 22;
-				for (int i = startIndex; i < splitStr.Count; i++)
+				// FIX 2 - event log has no values (no </table>
+				if (!pageContents.Contains("</table>", StringComparison.InvariantCultureIgnoreCase))
 				{
-					if (splitStr[i].Contains("</TABLE>", StringComparison.InvariantCultureIgnoreCase))
-					{
-						// stop now
-						i = splitStr.Count;
-					}
-					else
-					{
-						// just replace all </tr> with </tr><tr>
-						splitStr[i] = splitStr[i].Replace("</tr>", "</tr>\n<tr>", StringComparison.InvariantCultureIgnoreCase);
-					}
+					//event log page is messed up; don't run other fixes
 				}
+				else
+				{
+					// FIX 3
+					// split string on each newline
+					List<String> splitStr = pageContents.Split("\n").ToList<String>();
+					// determine where the table is; between line 23/24 and again at where the </table> isand determine where the table is; between line 23/24 and again at where the </table> is			
+					int startIndex = 22;
+					for (int i = startIndex; i < splitStr.Count; i++)
+					{
+						if (splitStr[i].Contains("</TABLE>", StringComparison.InvariantCultureIgnoreCase))
+						{
+							// stop now
+							i = splitStr.Count;
+						}
+						else
+						{
+							// just replace all </tr> with </tr><tr>
+							splitStr[i] = splitStr[i].Replace("</tr>", "</tr>\n<tr>", StringComparison.InvariantCultureIgnoreCase);
+						}
+					}
 
-				// stitch the string back together
-				pageContents = String.Join("\n", splitStr);
-
+					// stitch the string back together
+					pageContents = String.Join("\n", splitStr);
+				}
 			}
 			return pageContents;
 		}
