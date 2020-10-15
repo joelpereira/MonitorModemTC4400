@@ -25,6 +25,8 @@ namespace ModemMonitor
 
 		// local cache
 		private List<PageCache> localPageCache = new List<PageCache>();
+		private long previousRecordsAdded = 0;
+		private long counterTimesExecuted = 0;
 
 
 		public ModemTC4400(HttpClient client, String username, String password)
@@ -51,6 +53,12 @@ namespace ModemMonitor
 			// get modem info
 			recordsAdded += await GetDataAsync(ModemTC4400Pages.InfoPage, "Info-", 1, 0);
 
+			// check data for known issues
+			CheckDataConsistency(recordsAdded);
+
+			// increase counter(s)
+			counterTimesExecuted++;
+			previousRecordsAdded = recordsAdded;
 
 			Console.WriteLine($"Stored {recordsAdded} records at {DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss")}");
 		}
@@ -100,7 +108,7 @@ namespace ModemMonitor
 			List<List<String>> data = extractTableData(pageContents, genDate, tableNum, skipTableRows);
 
 			// save data to CSV
-			return WriteCSV(csvFilename, data);
+			return WriteToCSV(csvFilename, data);
 		}
 
 		private async Task<String> GetPageAsync(String pageURL)
@@ -206,7 +214,7 @@ namespace ModemMonitor
 			return results;
 		}
 
-		private int WriteCSV(String csvFilename, List<List<String>> data)
+		private int WriteToCSV(String csvFilename, List<List<String>> data)
 		{
 			int recordsAdded = 0;
 			bool skipFirstRow = false;
@@ -250,6 +258,12 @@ namespace ModemMonitor
 			return recordsAdded;
 		}
 
+		/// <summary>
+		/// Fix issues with Event Log page
+		/// </summary>
+		/// <param name="pageUrl"></param>
+		/// <param name="pageContents"></param>
+		/// <returns></returns>
 		private String FixEventLogPage(String pageUrl, String pageContents)
 		{
 			if (pageUrl.Contains(ModemTC4400Pages.EventLogPage))
@@ -290,6 +304,11 @@ namespace ModemMonitor
 			return pageContents;
 		}
 
+		/// <summary>
+		/// Check if page name is in local cache (retrieved already)
+		/// </summary>
+		/// <param name="pageName"></param>
+		/// <returns></returns>
 		private int PageInCache(String pageName)
 		{
 			for (int i = 0; i < localPageCache?.Count; i++)
@@ -300,6 +319,15 @@ namespace ModemMonitor
 				}
 			}
 			return -1;
+		}
+
+		private void CheckDataConsistency(long recordsAdded)
+		{
+			// Check if the number of records is drastically different from the previous run time
+			if (recordsAdded != previousRecordsAdded && counterTimesExecuted > 1)
+			{
+				Console.WriteLine($"Difference in number of records added: {(recordsAdded - previousRecordsAdded)}");
+			}
 		}
 	}
 }
