@@ -15,6 +15,8 @@ namespace ModemMonitor
 {
 	public class ModemTC4400
 	{
+		bool DEBUG;
+
 		// passed parameters
 		private HttpClient _client;
 		private String username;
@@ -29,11 +31,12 @@ namespace ModemMonitor
 		private long counterTimesExecuted = 0;
 
 
-		public ModemTC4400(HttpClient client, String username, String password)
+		public ModemTC4400(HttpClient client, String username, String password, bool debug = false)
 		{
 			_client = client;
 			this.username = username;
 			this.password = password;
+			this.DEBUG = debug;
 		}
 
 		public async Task GetAllDataAsync()
@@ -42,8 +45,10 @@ namespace ModemMonitor
 			localPageCache.Clear();
 
 			int recordsAdded = 0;
+			// get info page
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.StatusInfoPage, "StatusInfo-", 2, 1);
 			// get startup procedure data; 1st table
-			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "ConnectionStatus-", 1, 1, true);
+			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "ConnectionStatus-", 1, 1);
 			// get downstream connection quality data; 2nd table
 			recordsAdded += await GetDataAsync(ModemTC4400Pages.ConnectionStatusPage, "DownstreamChannelStatus-", 2, 1, false);
 			// get upstream connection quality data; 3rd table
@@ -161,7 +166,7 @@ namespace ModemMonitor
 				if (curRow >= skipRows)
 				{
 					curCol = 0;
-					//Console.WriteLine(nodeTR.InnerText);
+					if (DEBUG) { Console.WriteLine(nodeTR.InnerText); }
 
 					// get inner <TD> nodes
 					HtmlNodeCollection nodesTD = nodeTR.SelectNodes("td");
@@ -218,42 +223,45 @@ namespace ModemMonitor
 		{
 			int recordsAdded = 0;
 			bool skipFirstRow = false;
-			// if the file doesn't exist, write all rows
-			// if the file exists already, append and skip the first row
-			if (File.Exists(csvFilename))
+			if (data != null && data.Count > 0)
 			{
-				skipFirstRow = true;
-			}
-
-			using (var writer = new StreamWriter(csvFilename, true))
-			using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
-			{
-				// add each row
-				int curRow = 0;
-
-				foreach (List<String> row in data)
+				// if the file doesn't exist, write all rows
+				// if the file exists already, append and skip the first row
+				if (File.Exists(csvFilename))
 				{
-					// skip first/heading row?
-					if (curRow == 0 && skipFirstRow)
-					{
-						curRow++;
-						continue;
-					}
-					else
-					{
-						// write all the fields for the current record
-						foreach (String field in row)
-						{
-							csv.WriteField(field);
-						}
-						// complete the record
-						csv.NextRecord();
-						recordsAdded++;
-					}
-					curRow++;
+					skipFirstRow = true;
 				}
 
-				writer.Flush();
+				using (var writer = new StreamWriter(csvFilename, true))
+				using (var csv = new CsvWriter(writer, CultureInfo.InvariantCulture))
+				{
+					// add each row
+					int curRow = 0;
+
+					foreach (List<String> row in data)
+					{
+						// skip first/heading row?
+						if (curRow == 0 && skipFirstRow)
+						{
+							curRow++;
+							continue;
+						}
+						else
+						{
+							// write all the fields for the current record
+							foreach (String field in row)
+							{
+								csv.WriteField(field);
+							}
+							// complete the record
+							csv.NextRecord();
+							recordsAdded++;
+						}
+						curRow++;
+					}
+
+					writer.Flush();
+				}
 			}
 			return recordsAdded;
 		}
